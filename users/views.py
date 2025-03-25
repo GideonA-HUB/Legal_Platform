@@ -1,4 +1,6 @@
 from rest_framework import generics, permissions
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import RetrieveUpdateAPIView
 from rest_framework.generics import ListAPIView
@@ -61,6 +63,11 @@ class LawyerListView(ListAPIView):
     queryset = LawyerProfile.objects.all()
     serializer_class = LawyerProfileSerializer
     permission_classes = [permissions.IsAuthenticated, IsClient]  # Only clients can acess
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['specialization', 'address', 'user__is_verified', 'location']
+    search_fields = ['user__username', 'specialization', 'location']
+    ordering_fields = ['experience', 'user__username', 'verified', 'specialization']
+
 
 class UpdateLawyerProfileView(RetrieveUpdateAPIView):
     serializer_class = LawyerProfileSerializer

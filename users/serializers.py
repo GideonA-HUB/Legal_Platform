@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model, authenticate
 from .models import ClientProfile, LawyerProfile
+from users.models import User 
+
 
 User = get_user_model()
 
@@ -8,7 +10,7 @@ User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'is_client', 'is_lawyer']
+        fields = ['id', 'username', 'email', 'is_client', 'is_lawyer', 'is_verified']
 
 # Register Serializer
 class RegisterSerializer(serializers.ModelSerializer):
@@ -62,12 +64,18 @@ class ClientProfileSerializer(serializers.ModelSerializer):
 
 # Lawyer Profile Serializer
 class LawyerProfileSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
+    user = UserSerializer(read_only=True)  # Reference UserSerializer correctly
+    is_verified = serializers.SerializerMethodField()
+
 
     class Meta:
         model = LawyerProfile
-        fields = ['id', 'user', 'specialization', 'license_number', 'verified', 'address']
+        fields = ['id', 'user', 'specialization', 'license_number', 'verified', 'address', 'experience', 'location', 'is_verified']
         read_only_fields = ["id", "user"]  # This prevents users from changing the owner
+
+    def get_is_verified(self, obj):
+        return obj.user.is_verified if obj.user else False
+
 
 
 
