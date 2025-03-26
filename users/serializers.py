@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model, authenticate
 from .models import ClientProfile, LawyerProfile
-from users.models import User 
+from users.models import User
+from .models import Booking
 
 
 User = get_user_model()
@@ -76,6 +77,10 @@ class LawyerProfileSerializer(serializers.ModelSerializer):
     def get_is_verified(self, obj):
         return obj.user.is_verified if obj.user else False
 
-
+class BookingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Booking
+        fields = '__all__'
+        read_only_fields = ['client', 'status', 'created_at']
 
 

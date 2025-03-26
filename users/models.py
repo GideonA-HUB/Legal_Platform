@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
+
 class User(AbstractUser):
     email = models.EmailField(unique=True)  
     is_client = models.BooleanField(default=False)
@@ -31,3 +32,20 @@ class LawyerProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.specialization}"
+   
+
+class Booking(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('confirmed', 'Confirmed'),
+        ('canceled', 'Canceled'),
+    ]
+
+    client = models.ForeignKey(User, on_delete=models.CASCADE, related_name='client_bookings')
+    lawyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='lawyer_bookings')
+    appointment_date = models.DateTimeField()
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Booking by {self.client} with {self.lawyer} on {self.appointment_date}"

@@ -11,12 +11,15 @@ from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from .models import ClientProfile, LawyerProfile
+from .models import Booking
+from django.shortcuts import get_object_or_404
 from .serializers import (
     ClientProfileSerializer,
     LawyerProfileSerializer,
     UserSerializer,
     RegisterSerializer,
-    LoginSerializer
+    LoginSerializer,
+    BookingSerializer
 )
 
 User = get_user_model()
@@ -99,3 +102,54 @@ class MatchLawyersView(APIView):
         # Serialize and return results
         serializer = LawyerProfileSerializer(matching_lawyers, many=True)
         return Response(serializer.data, status=200)
+    
+class CreateBookingView(generics.CreateAPIView):
+    serializer_class = BookingSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(client=self.request.user, status='pending')
+
+
+class ListClientBookingsView(generics.ListAPIView):
+    serializer_class = BookingSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Booking.objects.filter(client=self.request.user)
+
+
+class ListLawyerBookingsView(generics.ListAPIView):
+    serializer_class = BookingSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Booking.objects.filter(lawyer=self.request.user)
+
+
+class UpdateBookingStatusView(generics.UpdateAPIView):
+    serializer_class = BookingSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Booking.objects.filter(lawyer=self.request.user)
+
+    def perform_update(self, serializer):
+        status = self.request.data.get("status", None)
+        if status and status in ['confirmed', 'canceled']:
+            serializer.save()
+        else:
+            return Response({"error": "Invalid status"}, status=400) 
+
+class DeleteBookingView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, id, *args, **kwargs):
+        booking = get_object_or_404(Booking, id=id)
+
+        # Ensure only the client who created the booking can delete it
+        if booking.client != request.user:
+            return Response({"error": "You can only delete your own bookings."}, status=status.HTTP_403_FORBIDDEN)
+
+        booking.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)           
