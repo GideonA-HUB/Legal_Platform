@@ -82,3 +82,20 @@ class UpdateClientProfileView(RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user.clientprofile  # Get the logged-in user's profile
+
+class MatchLawyersView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        # Get the authenticated user's client profile
+        try:
+            client_profile = ClientProfile.objects.get(user=request.user)
+        except ClientProfile.DoesNotExist:
+            return Response({"error": "Client profile not found"}, status=400)
+
+        # Find lawyers in the same city
+        matching_lawyers = LawyerProfile.objects.filter(city=client_profile.city, verified=True)
+
+        # Serialize and return results
+        serializer = LawyerProfileSerializer(matching_lawyers, many=True)
+        return Response(serializer.data, status=200)

@@ -13,7 +13,8 @@ class User(AbstractUser):
 
 class ClientProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    address = models.CharField(max_length=255) 
+    address = models.CharField(max_length=255)
+    city = models.CharField(max_length=100,  default="Unknown")
 
     def __str__(self):
         return self.user.username
@@ -26,6 +27,7 @@ class LawyerProfile(models.Model):
     address = models.CharField(max_length=255)
     experience = models.IntegerField(default=0)
     location = models.CharField(max_length=255, blank=True, null=True)
+    city = models.CharField(max_length=100,  default="Unknown")
 
     def __str__(self):
         return f"{self.user.username} - {self.specialization}"

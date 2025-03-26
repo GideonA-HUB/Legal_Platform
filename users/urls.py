@@ -1,6 +1,8 @@
 from django.urls import path
 from .views import RegisterView, LoginView, ClientListView, LawyerListView, UpdateLawyerProfileView, UpdateClientProfileView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from users.views import MatchLawyersView
+
 
 
 urlpatterns = [
@@ -12,4 +14,5 @@ urlpatterns = [
     path("profile/client/update/", UpdateClientProfileView.as_view(), name="update-client-profile"),
     path('auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('match-lawyers/', MatchLawyersView.as_view(), name='match-lawyers'),
 ]

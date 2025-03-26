@@ -59,7 +59,7 @@ class ClientProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ClientProfile
-        fields = ['id', 'user', 'address']
+        fields = ['id', 'user', 'address', 'city']
         read_only_fields = ["id", "user"]
 
 # Lawyer Profile Serializer
