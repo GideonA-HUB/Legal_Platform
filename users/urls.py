@@ -11,6 +11,11 @@ from .views import (
     ListLawyerBookingsView,
     UpdateBookingStatusView,
     DeleteBookingView,
+    ConsultationListCreateView, 
+    ConsultationDetailView,
+    ConsultationStatusUpdateView, 
+    ConsultationRescheduleView, 
+    NotificationListView,
 )
 
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
@@ -33,4 +38,9 @@ urlpatterns = [
     path('bookings/lawyer/', ListLawyerBookingsView.as_view(), name='lawyer-bookings'),
     path('bookings/update/<int:pk>/', UpdateBookingStatusView.as_view(), name='update-booking-status'),
     path('bookings/delete/<int:id>/', DeleteBookingView.as_view(), name='delete-booking'),
+    path('consultations/', ConsultationListCreateView.as_view(), name='consultation-list-create'),
+    path('consultations/<int:pk>/', ConsultationDetailView.as_view(), name='consultation-detail'),
+    path('consultations/<int:pk>/status/', ConsultationStatusUpdateView.as_view(), name='consultation-status'),
+    path('consultations/<int:pk>/reschedule/', ConsultationRescheduleView.as_view(), name='consultation-reschedule'),
+    path('notifications/', NotificationListView.as_view(), name='notification-list'),
 ]

@@ -1,4 +1,5 @@
 from rest_framework import generics, permissions
+from rest_framework.exceptions import ValidationError
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from rest_framework.permissions import IsAuthenticated
@@ -12,6 +13,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from .models import ClientProfile, LawyerProfile
 from .models import Booking
+from .models import Consultation, Notification
+from datetime import datetime
 from django.shortcuts import get_object_or_404
 from .serializers import (
     ClientProfileSerializer,
@@ -19,7 +22,9 @@ from .serializers import (
     UserSerializer,
     RegisterSerializer,
     LoginSerializer,
-    BookingSerializer
+    BookingSerializer,
+    ConsultationSerializer,
+    NotificationSerializer,
 )
 
 User = get_user_model()
@@ -152,4 +157,110 @@ class DeleteBookingView(APIView):
             return Response({"error": "You can only delete your own bookings."}, status=status.HTTP_403_FORBIDDEN)
 
         booking.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)           
+        return Response(status=status.HTTP_204_NO_CONTENT)  
+
+class ConsultationListCreateView(generics.ListCreateAPIView):
+    """List all consultations and create a new consultation"""
+    queryset = Consultation.objects.all()
+    serializer_class = ConsultationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        # Ensure only clients can create consultations
+        if not hasattr(self.request.user, 'clientprofile'):
+            raise ValidationError({"error": "Only clients can schedule consultations."})
+
+        serializer.save(client=self.request.user.clientprofile)
+
+class ConsultationDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """Retrieve, update, or delete a consultation"""
+    queryset = Consultation.objects.all()
+    serializer_class = ConsultationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """Filter consultations based on user type"""
+        user = self.request.user
+        if hasattr(user, 'clientprofile'):
+            return Consultation.objects.filter(client=user.clientprofile)
+        elif hasattr(user, 'lawyerprofile'):
+            return Consultation.objects.filter(lawyer=user.lawyerprofile)
+        return Consultation.objects.none()
+    
+
+class ConsultationStatusUpdateView(generics.UpdateAPIView):
+    """Allow a lawyer to confirm or cancel a consultation"""
+    queryset = Consultation.objects.all()
+    serializer_class = ConsultationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def update(self, request, *args, **kwargs):
+        consultation = self.get_object()
+        
+        # Ensure only the lawyer can change the status
+        if request.user != consultation.lawyer.user:
+            return Response({"error": "You are not authorized to change this consultation's status."}, status=status.HTTP_403_FORBIDDEN)
+        
+        new_status = request.data.get("status")
+        if new_status not in ["confirmed", "canceled"]:
+            return Response({"error": "Invalid status value"}, status=status.HTTP_400_BAD_REQUEST)
+
+        consultation.status = new_status
+        consultation.save()
+
+        # Create notification for the client
+        Notification.objects.create(
+            recipient=consultation.client.user,
+            message=f"Your consultation with {consultation.lawyer.user.username} has been {new_status}."
+        )
+
+        return Response({"message": f"Consultation {new_status} successfully!"}, status=status.HTTP_200_OK)
+
+class ConsultationRescheduleView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, pk):
+        try:
+            consultation = Consultation.objects.get(id=pk, client=request.user.clientprofile)
+        except Consultation.DoesNotExist:
+            return Response({"error": "Consultation not found or not accessible"}, status=status.HTTP_404_NOT_FOUND)
+
+        new_date_str = request.data.get("date")
+        new_time_str = request.data.get("time")
+
+        if not new_date_str or not new_time_str:
+            return Response({"error": "Both date and time are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Convert date string to a date object before comparison
+        try:
+            new_date = datetime.strptime(new_date_str, "%Y-%m-%d").date()
+            new_time = datetime.strptime(new_time_str, "%H:%M:%S").time()
+        except ValueError:
+            return Response({"error": "Invalid date or time format"}, status=status.HTTP_400_BAD_REQUEST)
+
+        #  Ensure new date is in the future
+        if new_date < datetime.today().date():
+            return Response({"error": "New consultation date must be in the future"}, status=status.HTTP_400_BAD_REQUEST)
+
+        #  Update consultation
+        consultation.date = new_date
+        consultation.time = new_time
+        consultation.status = "pending"  # Reset status to pending after rescheduling
+        consultation.save()
+
+        # Notify the lawyer about the rescheduling
+        Notification.objects.create(
+            recipient=consultation.lawyer.user,
+            message=f"Your consultation with {consultation.client.user.username} has been rescheduled to {new_date} at {new_time}."
+        )
+
+        return Response({"message": "Consultation rescheduled successfully!"}, status=status.HTTP_200_OK)
+
+class NotificationListView(generics.ListAPIView):
+    """Retrieve notifications for the logged-in user"""
+    serializer_class = NotificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Notification.objects.filter(recipient=self.request.user).order_by('-created_at')
+

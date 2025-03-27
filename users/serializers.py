@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model, authenticate
 from .models import ClientProfile, LawyerProfile
 from users.models import User
-from .models import Booking
+from .models import Booking, Consultation, Notification
 
 
 User = get_user_model()
@@ -83,4 +83,33 @@ class BookingSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['client', 'status', 'created_at']
 
+class ConsultationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Consultation
+        fields = '__all__'
+        read_only_fields = ['status', 'created_at', 'updated_at', 'client']
 
+    def update(self, instance, validated_data):
+        """Allow only valid updates based on user role"""
+        user = self.context['request'].user
+
+        # Lawyers can update only the status
+        if hasattr(user, 'lawyerprofile'):
+            if 'status' in validated_data:
+                instance.status = validated_data['status']
+        
+        # Clients can reschedule but not change the lawyer/status
+        elif hasattr(user, 'clientprofile'):
+            if 'date' in validated_data:
+                instance.date = validated_data['date']
+            if 'time' in validated_data:
+                instance.time = validated_data['time']
+        
+        instance.save()
+        return instance
+    
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = '__all__'
+        read_only_fields = ['recipient', 'created_at']    
