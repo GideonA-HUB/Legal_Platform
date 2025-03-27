@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model, authenticate
 from .models import ClientProfile, LawyerProfile
 from users.models import User
+from .models import Review
 from .models import Booking, Consultation, Notification
 
 
@@ -112,4 +113,13 @@ class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
         fields = '__all__'
-        read_only_fields = ['recipient', 'created_at']    
+        read_only_fields = ['recipient', 'created_at']
+
+class ReviewSerializer(serializers.ModelSerializer):
+    client = serializers.ReadOnlyField(source='client.user.username')  # Show username instead of ID
+    lawyer = serializers.ReadOnlyField(source='lawyer.user.username')
+
+    class Meta:
+        model = Review
+        fields = '__all__'
+        read_only_fields = ['client', 'created_at']

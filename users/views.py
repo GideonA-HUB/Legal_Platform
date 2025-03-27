@@ -13,8 +13,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from .models import ClientProfile, LawyerProfile
 from .models import Booking
-from .models import Consultation, Notification
+from .models import Consultation, Notification, Review
 from datetime import datetime
+from rest_framework import serializers
 from django.shortcuts import get_object_or_404
 from .serializers import (
     ClientProfileSerializer,
@@ -25,6 +26,7 @@ from .serializers import (
     BookingSerializer,
     ConsultationSerializer,
     NotificationSerializer,
+    ReviewSerializer,
 )
 
 User = get_user_model()
@@ -264,3 +266,27 @@ class NotificationListView(generics.ListAPIView):
     def get_queryset(self):
         return Notification.objects.filter(recipient=self.request.user).order_by('-created_at')
 
+class ReviewListCreateView(generics.ListCreateAPIView):
+    """Clients can create reviews, and everyone can list them"""
+    serializer_class = ReviewSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Review.objects.all()
+
+    def perform_create(self, serializer):
+        consultation = serializer.validated_data.get("consultation")
+        if consultation:
+            lawyer = consultation.lawyer  # Retrieve the lawyer from the consultation
+            serializer.save(client=self.request.user.clientprofile, lawyer=lawyer)
+        else:
+            raise serializers.ValidationError({"consultation": "A valid consultation is required."})
+
+
+class ReviewDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """Clients can update/delete their reviews"""
+    serializer_class = ReviewSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Review.objects.filter(client=self.request.user.clientprofile)

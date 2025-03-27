@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.timezone import now
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 
@@ -96,3 +97,16 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notification for {self.recipient.username}: {self.message[:30]}"
+
+class Review(models.Model):
+    client = models.ForeignKey(ClientProfile, on_delete=models.CASCADE, related_name="reviews")
+    lawyer = models.ForeignKey(LawyerProfile, on_delete=models.CASCADE, related_name="reviews")
+    rating = models.PositiveIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('client', 'lawyer')  # A client can only review a lawyer once
+
+    def __str__(self):
+        return f"Review by {self.client.user.username} for {self.lawyer.user.username}"
